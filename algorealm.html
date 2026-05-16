@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AlgoRealm</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--gold:#ffd700;--accent:#00ffcc;--ui:#0a0a14;--border:#4ade80;--text:#e0ffe0;}
+body{background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden;font-family:'Press Start 2P',monospace;color:var(--text);}
+
+#titleScreen{position:absolute;inset:0;background:linear-gradient(180deg,#050518 0%,#0a1a2a 50%,#050a05 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:18px;}
+#titleScreen h1{font-size:48px;color:var(--gold);text-shadow:0 0 40px #ffd70099,4px 4px 0 #7a5500;animation:glow 2s ease-in-out infinite;}
+@keyframes glow{0%,100%{text-shadow:0 0 30px #ffd70066,4px 4px 0 #7a5500}50%{text-shadow:0 0 70px #ffd700cc,4px 4px 0 #7a5500,0 0 100px #ff8800}}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle 2s ease-in-out infinite;}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:1}}
+#startBtn{background:var(--border);color:#000;border:none;padding:14px 40px;font-family:'Press Start 2P',monospace;font-size:12px;cursor:pointer;box-shadow:4px 4px 0 #006600;transition:transform .1s;}
+#startBtn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #006600;}
+
+#shell{display:none;flex-direction:column;width:900px;max-width:100vw;}
+#hud{background:rgba(5,5,20,.95);border:3px solid var(--border);border-bottom:none;padding:7px 14px;display:flex;align-items:center;justify-content:space-between;font-size:7px;}
+.bar-track{width:110px;height:11px;background:#111;border:2px solid #333;}
+.bar-fill{height:100%;background:linear-gradient(90deg,#00ff88,#00cc66);transition:width .4s;}
+#gameCanvas{display:block;border-left:3px solid var(--border);border-right:3px solid var(--border);image-rendering:pixelated;cursor:crosshair;}
+#bottomBar{background:rgba(5,5,20,.95);border:3px solid var(--border);border-top:2px solid #1a1a3a;padding:6px 14px;display:flex;align-items:center;justify-content:space-between;font-size:7px;gap:10px;}
+.hint span{color:var(--border);}
+
+/* speech bubble now drawn on canvas */
+
+/* NEXUS CHAT */
+#nexusChat{position:fixed;bottom:74px;right:20px;width:340px;max-width:96vw;background:rgba(4,4,18,.98);border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 32px #00ffcc22,0 8px 32px rgba(0,0,0,.6);display:none;flex-direction:column;z-index:80;animation:slideInRight .22s ease;overflow:hidden;}
+@keyframes slideInRight{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+.nc-head{background:linear-gradient(135deg,#001a22,#00101a);border-bottom:1px solid #0a3a3a;padding:10px 14px;display:flex;align-items:center;gap:10px;}
+#ncAvatar{image-rendering:pixelated;width:36px;height:36px;border-radius:4px;border:1px solid var(--accent);}
+.nc-name{font-size:8px;color:var(--accent);display:block;}
+.nc-sub{font-size:6px;color:#446;display:block;margin-top:2px;}
+#ncLog{padding:12px;font-family:'VT323',monospace;font-size:16px;height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+#ncLog::-webkit-scrollbar{width:3px;}#ncLog::-webkit-scrollbar-thumb{background:#1a3a3a;border-radius:2px;}
+/* message bubbles */
+.nc-nexus-wrap{display:flex;align-items:flex-end;gap:6px;}
+.nc-nexus-wrap canvas{width:22px;height:22px;flex-shrink:0;image-rendering:pixelated;border-radius:3px;}
+.nc-nexus-bubble{background:#062a2a;border:1px solid #0a4a4a;border-radius:12px 12px 12px 2px;padding:7px 10px;color:#b0ffe8;max-width:230px;line-height:1.55;font-size:15px;}
+.nc-player-wrap{display:flex;justify-content:flex-end;}
+.nc-player-bubble{background:#1a1a44;border:1px solid #2a2a66;border-radius:12px 12px 2px 12px;padding:7px 10px;color:#d0d0ff;max-width:230px;line-height:1.55;font-size:15px;}
+.nc-typing{display:flex;align-items:center;gap:4px;padding:6px 10px;}
+.nc-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:dotPulse 1.2s ease-in-out infinite;}
+.nc-dot:nth-child(2){animation-delay:.2s}.nc-dot:nth-child(3){animation-delay:.4s}
+@keyframes dotPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+#ncInputRow{display:flex;border-top:1px solid #0a2a2a;background:#020210;}
+#ncText{flex:1;background:transparent;border:none;outline:none;color:#e0ffe0;font-family:'VT323',monospace;font-size:17px;padding:10px 12px;}
+#ncText::placeholder{color:#224;font-size:15px;}
+#ncSend{background:var(--accent);color:#000;border:none;padding:10px 14px;font-family:'Press Start 2P',monospace;font-size:7px;cursor:pointer;transition:background .15s;}
+#ncSend:hover{background:#5fffdd;}
+.nc-close{background:none;border:none;color:#335;font-size:9px;cursor:pointer;font-family:'Press Start 2P',monospace;margin-left:auto;padding:2px 4px;}
+.nc-close:hover{color:#fff;}
+/* T button floating */
+#chatToggleBtn{position:fixed;bottom:84px;right:22px;background:var(--accent);color:#000;border:none;width:42px;height:42px;border-radius:50%;font-size:18px;cursor:pointer;box-shadow:0 0 16px #00ffcc55;z-index:79;display:none;transition:transform .15s;}
+#chatToggleBtn:hover{transform:scale(1.1);}
+
+/* CODE EDITOR */
+#codeModal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:90;}
+#codeWrap{width:760px;max-width:98vw;background:#080814;border:3px solid var(--border);box-shadow:0 0 40px #4ade8033;display:flex;flex-direction:column;}
+.ed-head{background:linear-gradient(90deg,#071807,#070718);border-bottom:2px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;}
+.ed-title{font-size:9px;color:var(--gold);}
+.ed-zone{font-size:7px;color:#446;margin-top:3px;}
+.ed-close{background:none;border:none;color:#446;font-size:9px;cursor:pointer;font-family:'Press Start 2P',monospace;}
+.ed-close:hover{color:#f44;}
+.ed-body{display:flex;height:350px;}
+.quest-info{width:220px;flex-shrink:0;border-right:2px solid #12122a;padding:12px;font-family:'VT323',monospace;font-size:15px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.q-lbl{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--accent);margin-bottom:3px;}
+.q-txt{color:#ccc;line-height:1.6;}
+.q-ex{background:#0a0a18;border:1px solid #222;padding:6px;color:#4ade80;font-size:13px;white-space:pre;}
+.code-wrap{flex:1;display:flex;flex-direction:column;}
+#codeInput{flex:1;background:#050510;color:#e0ffe0;border:none;outline:none;padding:14px;font-family:'VT323',monospace;font-size:18px;resize:none;line-height:1.7;tab-size:4;}
+.ed-foot{border-top:2px solid #12122a;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+#outBox{flex:1;background:#040410;border:2px solid #1a1a3a;padding:8px 12px;font-family:'VT323',monospace;font-size:15px;color:#666;min-height:36px;max-height:36px;}
+#outBox.ok{color:#4ade80;border-color:#4ade80;}#outBox.err{color:#f87171;border-color:#f87171;}#outBox.warn{color:#fbbf24;border-color:#fbbf24;}
+.run-btn{background:var(--border);color:#000;border:none;padding:10px 22px;font-family:'Press Start 2P',monospace;font-size:9px;cursor:pointer;box-shadow:3px 3px 0 #006600;}
+.run-btn:hover{background:#5af07a;}
+
+#toast{position:fixed;top:76px;left:50%;transform:translateX(-50%);background:rgba(5,5,20,.97);border:3px solid var(--gold);padding:11px 22px;font-size:8px;color:var(--gold);display:none;z-index:150;text-align:center;box-shadow:0 0 20px #ffd70044;}
+#transOverlay{position:fixed;inset:0;background:#000;z-index:170;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+#transOverlay h2{font-size:22px;color:var(--gold);}
+</style>
+</head>
+<body>
+
+<div id="titleScreen">
+  <div id="starsWrap" style="position:absolute;inset:0;pointer-events:none;"></div>
+  <h1>⚔ AlgoRealm</h1>
+  <div style="font-size:10px;color:#4ade80;letter-spacing:2px;">CODE · EXPLORE · CONQUER</div>
+  <div style="font-size:9px;color:#556;line-height:2.4;text-align:center;">Binary Sea · Sort Castle · Memory Forest<br>Bug Dungeon · Algorithm City</div>
+  <button id="startBtn" onclick="startGame()">▶ BEGIN QUEST</button>
+  <div style="font-size:7px;color:#334;margin-top:4px;">WASD move &nbsp;·&nbsp; E interact &nbsp;·&nbsp; T talk to Nexus</div>
+</div>
+
+<div id="shell">
+  <div id="hud">
+    <div style="display:flex;gap:18px;align-items:center;">
+      <div>⚔ <span style="color:var(--gold)">ALGO</span>REALM</div>
+      <div id="zoneBadge" style="background:#0a0a2a;border:2px solid var(--accent);padding:3px 10px;font-size:7px;color:var(--accent);">🌍 OVERWORLD</div>
+    </div>
+    <div style="display:flex;gap:18px;align-items:center;">
+      <div style="display:flex;align-items:center;gap:8px;">⚡<div class="bar-track"><div class="bar-fill" id="energyBar" style="width:70%"></div></div><span id="eVal" style="color:var(--gold)">70</span></div>
+      <div style="color:var(--gold);">🏆 <span id="scoreVal">0</span></div>
+    </div>
+  </div>
+  <canvas id="gameCanvas" width="900" height="540"></canvas>
+  <div id="bottomBar">
+    <div class="hint"><span>WASD</span> move &nbsp;<span>E</span> interact &nbsp;<span>💬</span> chat Nexus &nbsp;<span>ESC</span> back</div>
+    <div id="coordTxt" style="color:#334;font-size:7px;">0,0</div>
+  </div>
+</div>
+
+<button id="chatToggleBtn" onclick="toggleChat()" title="Talk to Nexus">💬</button>
+
+<div id="nexusChat">
+  <div class="nc-head">
+    <canvas id="ncAvatar" width="36" height="36"></canvas>
+    <div><span class="nc-name">◈ NEXUS</span><span class="nc-sub">AI Code Guardian · AlgoRealm</span></div>
+    <button class="nc-close" onclick="closeChat()">✕</button>
+  </div>
+  <div id="ncLog"></div>
+  <div id="ncInputRow">
+    <input id="ncText" placeholder="Ask me anything..." maxlength="300" onkeydown="if(event.key==='Enter')sendChat()">
+    <button id="ncSend" onclick="sendChat()">▶</button>
+  </div>
+</div>
+
+<div id="codeModal">
+  <div id="codeWrap">
+    <div class="ed-head">
+      <div><div class="ed-title" id="edTitle">Quest</div><div class="ed-zone" id="edZone">Zone</div></div>
+      <button class="ed-close" onclick="closeEditor()">✕ CLOSE</button>
+    </div>
+    <div class="ed-body">
+      <div class="quest-info">
+        <div><div class="q-lbl">📜 MISSION</div><div class="q-txt" id="edDesc"></div></div>
+        <div><div class="q-lbl">💡 EXAMPLE</div><div class="q-ex" id="edEx"></div></div>
+        <div><div class="q-lbl">🔮 NEXUS HINT</div><div class="q-txt" id="edHint" style="color:var(--accent);font-family:'VT323',monospace;font-size:14px;">Run your code to get feedback!</div></div>
+      </div>
+      <div class="code-wrap">
+        <textarea id="codeInput" placeholder="# Write your Python solution here&#10;def solve():&#10;    pass"></textarea>
+        <div class="ed-foot">
+          <div id="outBox">▶ Output appears here...</div>
+          <button class="run-btn" onclick="runCode()">▶ RUN</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="transOverlay"><h2 id="transTitle">Loading...</h2></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const W = canvas.width, H = canvas.height;
+const TILE = 36;
+
+// ─── TILE IDs ───────────────────────────────────────────
+const T = {
+  GRASS:0, WATER:1, SAND:2, TREE:3, STONE:4, PATH:5,
+  WALL:6, FLOOR:7, DARK:8, CASTLE_WALL:9, CASTLE_FLOOR:10,
+  BUSH:12, MUSHROOM:13, DUNGEON_FLOOR:14,
+  PORTAL_OUT:15,
+  PORT_SEA:20, PORT_CITY:21, PORT_FOREST:22, PORT_DUNGEON:23, PORT_CASTLE:24,
+  ROCK:30, CHEST:31, DOOR:32, ALTAR:33, SCROLL:34, CRYSTAL:35,
+  DARK_TREE:36, WATER2:37,
+};
+const SOLID = new Set([T.WATER,T.WATER2,T.TREE,T.STONE,T.WALL,T.BUSH,T.CASTLE_WALL,T.DARK_TREE,T.DARK]);
+const INTERACTABLE = new Set([T.ROCK,T.CHEST,T.DOOR,T.ALTAR,T.SCROLL,T.CRYSTAL,T.PORTAL_OUT,T.PORT_SEA,T.PORT_CITY,T.PORT_FOREST,T.PORT_DUNGEON,T.PORT_CASTLE]);
+
+// ─── MAPS ───────────────────────────────────────────────
+const MAP_OW = [
+  [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+  [4,0,0,0,0,0,3,3,0,0,0,0,5,5,5,0,0,0,0,0,0,0,0,0,4],
+  [4,0,0,0,12,0,0,3,0,0,0,0,5,0,0,0,6,6,6,6,6,6,0,0,4],
+  [4,0,3,0,0,0,0,0,0,20,0,0,5,0,0,6,7,7,7,7,7,6,0,0,4],
+  [4,0,3,3,0,0,0,0,0,0,0,0,5,0,0,6,7,21,7,7,7,6,0,0,4],
+  [4,0,0,0,0,1,1,1,1,1,1,0,5,0,0,6,7,7,7,7,7,6,0,0,4],
+  [4,0,0,0,1,1,1,1,1,1,1,0,5,0,0,6,6,6,6,6,6,6,0,0,4],
+  [4,0,0,0,1,1,1,1,1,1,1,0,5,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,0,0,0,1,2,2,2,1,1,0,0,5,0,0,0,0,3,3,3,3,0,0,0,4],
+  [4,0,0,0,0,2,2,2,0,0,0,0,5,0,0,0,3,22,3,3,3,3,0,0,4],
+  [4,0,4,4,0,0,0,0,0,0,0,0,5,0,0,0,3,3,3,3,3,3,0,0,4],
+  [4,0,4,4,0,0,0,0,0,0,0,0,5,0,0,0,0,3,3,3,3,0,0,0,4],
+  [4,0,0,0,0,0,0,23,0,0,0,0,5,0,0,0,0,0,0,24,0,0,0,0,4],
+  [4,0,0,0,0,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+];
+const MAP_SEA = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,37,37,1,1,1,1,1,1,1,1,1,1,1,1,1,37,1,1,1,1,1,1],
+  [1,1,37,2,2,37,1,1,1,1,35,1,1,1,1,1,1,37,2,2,1,1,1,1,1],
+  [1,37,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,37,1,1,1],
+  [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1],
+  [1,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,1,1],
+  [1,2,2,0,0,0,4,0,0,0,0,0,0,0,0,0,4,0,0,0,0,2,2,1,1],
+  [1,2,2,0,0,0,0,0,0,0,0,0,0,30,0,0,0,0,0,0,0,2,2,1,1],
+  [1,2,2,0,0,4,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,2,2,1,1],
+  [1,2,2,0,0,0,0,0,0,31,0,0,0,0,0,0,0,0,0,0,0,2,2,1,1],
+  [1,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,1,1],
+  [1,1,2,2,2,2,0,0,0,0,0,15,0,0,0,0,0,0,2,2,2,2,1,1,1],
+  [1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1],
+  [1,1,1,1,37,37,37,37,37,37,37,37,37,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+const MAP_CASTLE = [
+  [9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,35,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,32,10,9,9,9,9,9,10,10,33,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,31,10,10,9,9,9],
+  [9,10,10,10,10,10,10,10,9,9,9,9,9,10,10,10,10,10,10,10,10,10,9,9,9],
+  [9,9,9,9,9,10,10,9,9,9,9,9,9,9,9,9,9,9,10,10,9,9,9,9,9],
+  [9,9,9,9,9,15,10,9,9,9,9,9,9,9,9,9,9,9,10,15,9,9,9,9,9],
+  [9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9],
+];
+const MAP_FOREST = [
+  [36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36],
+  [36,0,0,0,0,36,36,36,36,36,0,0,0,0,0,0,0,0,36,36,36,36,36,36,36],
+  [36,0,13,0,0,0,36,36,36,0,0,0,0,0,0,0,0,0,0,36,36,36,36,36,36],
+  [36,0,0,0,36,0,0,36,0,0,0,0,0,0,0,0,0,0,0,0,36,36,36,36,36],
+  [36,0,0,0,0,0,0,0,0,0,0,31,0,0,0,0,0,0,0,0,0,36,36,36,36],
+  [36,36,0,0,0,0,0,0,0,0,0,0,0,0,34,0,0,0,0,0,0,0,36,36,36],
+  [36,36,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,36,36,36],
+  [36,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,36,36,36,36],
+  [36,36,0,0,13,0,0,0,0,0,0,0,0,0,0,0,0,0,13,0,0,36,36,36,36],
+  [36,36,0,0,0,0,0,0,0,0,35,0,0,0,0,0,0,0,0,0,0,36,36,36,36],
+  [36,36,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,36,36,36,36,36],
+  [36,36,36,36,0,0,0,0,0,0,0,0,0,15,0,0,0,0,36,36,36,36,36,36,36],
+  [36,36,36,36,36,0,0,0,0,0,0,0,0,0,0,36,36,36,36,36,36,36,36,36,36],
+  [36,36,36,36,36,36,0,0,0,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36],
+  [36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36],
+];
+const MAP_DUNGEON = [
+  [8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8],
+  [8,14,14,14,8,8,8,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8,8,8,8],
+  [8,14,14,14,14,14,8,14,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8,8,8],
+  [8,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8,8],
+  [8,8,8,14,14,14,14,14,8,8,8,8,8,14,14,14,14,14,14,14,8,8,8,8,8],
+  [8,8,8,14,14,31,14,14,8,8,8,8,8,14,14,14,14,14,14,14,8,8,8,8,8],
+  [8,8,8,14,14,14,8,8,8,8,8,8,8,14,14,30,14,14,14,14,8,8,8,8,8],
+  [8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8],
+  [8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8],
+  [8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8,8,8],
+  [8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,8,8,8,8,8,8,8],
+  [8,8,8,8,8,14,14,14,14,14,14,14,14,14,8,8,8,8,8,8,8,8,8,8,8],
+  [8,8,8,8,8,14,14,14,14,14,14,14,14,8,8,8,8,8,8,8,8,8,8,8,8],
+  [8,8,8,8,8,15,14,14,14,14,14,14,8,8,8,8,8,8,8,8,8,8,8,8,8],
+  [8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8],
+];
+
+// ─── ZONE META ──────────────────────────────────────────
+const ZONE_META = {
+  PORT_SEA:   {name:'Binary Sea',    icon:'🌊',color:'#1a8fff',map:MAP_SEA,    spawnX:12,spawnY:11, intro:"We're in the Binary Sea! Find the hidden rock — it guards an ancient puzzle."},
+  PORT_FOREST:{name:'Memory Forest', icon:'🌲',color:'#22aa44',map:MAP_FOREST, spawnX:12,spawnY:7,  intro:"The Memory Forest... search for the glowing scroll near the mushrooms."},
+  PORT_DUNGEON:{name:'Bug Dungeon',  icon:'🐛',color:'#aa0088',map:MAP_DUNGEON,spawnX:6, spawnY:13, intro:"Dark here. Bugs lurk everywhere. Check behind that strange glowing rock."},
+  PORT_CASTLE:{name:'Sort Castle',   icon:'🏰',color:'#998800',map:MAP_CASTLE, spawnX:5, spawnY:13, intro:"Sort Castle! The altar in the throne room holds the challenge. Find it!"},
+  PORT_CITY:  {name:'Algorithm City',icon:'🏙️',color:'#ff6622',map:null,       spawnX:12,spawnY:7,  intro:"Algorithm City — coming soon!"},
+};
+
+// ─── QUEST TRIGGERS PER ZONE ────────────────────────────
+const ZONE_TRIGGERS = {
+  PORT_SEA:    {[T.ROCK]:'binarySearch', [T.CHEST]:'binarySearch'},
+  PORT_FOREST: {[T.SCROLL]:'treeSum',    [T.CHEST]:'treeSum'},
+  PORT_DUNGEON:{[T.ROCK]:'fixBug',       [T.CHEST]:'fixBug'},
+  PORT_CASTLE: {[T.ALTAR]:'mergeSort',   [T.CHEST]:'mergeSort', [T.DOOR]:'mergeSort'},
+  PORT_CITY:   {[T.CHEST]:'bubbleSort'},
+};
+
+// ─── QUESTS ──────────────────────────────────────────────
+const QUESTS = {
+  binarySearch:{title:'Calm the Binary Waves',zone:'Binary Sea',
+    desc:'The sea churns with chaos! Write binary_search(arr, target) on a sorted list. Return the index, or -1.',
+    ex:'binary_search([1,3,5,7,9], 5)\n→ 2\nbinary_search([1,3,5], 8)\n→ -1',
+    hint:'Check the middle. Too big? Go left. Too small? Go right. Use while loop.',
+    check(c){
+      if(!c.includes('def'))return{ok:false,msg:'Define a function first!'};
+      if(!c.includes('mid'))return{ok:false,msg:'Calculate a midpoint index first...'};
+      if((c.includes('while')||c.includes('for'))&&c.includes('mid'))return{ok:true,bonus:true,msg:'⚡ OPTIMAL! Binary Sea calms! +100 Energy!'};
+      return{ok:true,bonus:false,msg:'✅ Works! Sea partially calms. +60 Energy'};
+    }},
+  bubbleSort:{title:'Unblock the City Roads',zone:'Algorithm City',
+    desc:'Traffic is frozen! Implement bubble_sort(arr) to sort numbers ascending. Return sorted list.',
+    ex:'bubble_sort([5,3,8,1,2])\n→ [1,2,3,5,8]',
+    hint:'Compare adjacent pairs and swap if out of order. Repeat until done.',
+    check(c){
+      if(!c.includes('def'))return{ok:false,msg:'Define bubble_sort first!'};
+      if(!c.includes('for')&&!c.includes('while'))return{ok:false,msg:'You need a loop to compare elements!'};
+      if(c.includes('for')&&c.includes('range'))return{ok:true,bonus:true,msg:'⚡ OPTIMAL! City roads clear! +100 Energy!'};
+      return{ok:true,bonus:false,msg:'✅ Sorted! +60 Energy'};
+    }},
+  treeSum:{title:'Find the Memory Core',zone:'Memory Forest',
+    desc:'Write tree_sum(root) to sum all node values in a binary tree using recursion.',
+    ex:'tree_sum(root)\n→ sum of all nodes\nNone → 0',
+    hint:'Sum = root.val + tree_sum(root.left) + tree_sum(root.right)',
+    check(c){
+      if(!c.includes('def'))return{ok:false,msg:'Define tree_sum!'};
+      if(!c.includes('return'))return{ok:false,msg:'Return the sum!'};
+      if((c.includes('None')||c.includes('left')||c.includes('right'))&&c.includes('return'))return{ok:true,bonus:true,msg:'⚡ RECURSIVE MASTERY! Memory core found! +100 Energy!'};
+      return{ok:true,bonus:false,msg:'✅ Core located! +60 Energy'};
+    }},
+  fixBug:{title:'Slay the Bug Monsters',zone:'Bug Dungeon',
+    desc:'Fix the bugs in this code:\n\ndef sum_evens(nums):\n  total = 0\n  for i in range(len(nums)+1):\n    if nums[i] % 2 = 0:\n      total += nums[i]\n  return total',
+    ex:'sum_evens([1,2,3,4,6])\n→ 12',
+    hint:'Bug 1: range too long (+1). Bug 2: = vs == in the if statement.',
+    check(c){
+      if(c.includes('len(nums)+1'))return{ok:false,msg:'Bug #1 still lurks! That +1 is wrong...'};
+      if(c.includes('% 2 =')&&!c.includes('% 2 =='))return{ok:false,msg:'Bug #2 bites! = vs == ??'};
+      if(c.includes('% 2 ==')&&!c.includes('+1'))return{ok:true,bonus:true,msg:'⚡ ALL BUGS SLAIN! Dungeon cleared! +100 Energy!'};
+      return{ok:false,msg:'Keep hunting... two bugs total.'};
+    }},
+  mergeSort:{title:'Open the Castle Gates',zone:'Sort Castle',
+    desc:'Implement merge_sort(arr) — the castle\'s sacred sorting ritual — to unseal the gates.',
+    ex:'merge_sort([38,27,43,3])\n→ [3,27,38,43]',
+    hint:'Split in half, sort recursively, then merge back in order.',
+    check(c){
+      if(!c.includes('def merge'))return{ok:false,msg:'You need a merge() helper too!'};
+      if(!c.includes('def merge_sort'))return{ok:false,msg:'Define merge_sort!'};
+      if(c.includes('def merge')&&c.includes('def merge_sort')&&c.includes('//'))return{ok:true,bonus:true,msg:'⚡ CASTLE GATES OPEN! Crystal Crown earned! +100 Energy! 🏆'};
+      if(c.includes('merge'))return{ok:true,bonus:false,msg:'✅ Gates creak open... +60 Energy'};
+      return{ok:false,msg:'Build recursive split + merge...'};
+    }},
+};
+
+// ─── STATE ───────────────────────────────────────────────
+let currentMapId='OVERWORLD', currentMap=MAP_OW;
+let ROWS=currentMap.length, COLS=currentMap[0].length;
+let player={x:12*TILE,y:7*TILE,w:TILE-6,h:TILE-6,speed:2.8};
+let nexus={x:13.6*TILE,y:7*TILE};
+let camera={x:0,y:0};
+let keys={}, animFrame=0, energy=70, score=0;
+let particles=[], triggeredSet=new Set();
+let currentQuest=null, pendingTileKey=null;
+let chatOpen=false, chatHistory=[], nexusTyping=false;
+
+// ─── TILE DRAW ───────────────────────────────────────────
+function drawTile(tid,px,py,s){
+  switch(tid){
+    case T.GRASS:
+      ctx.fillStyle='#3a7d2c';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#4a9c38';
+      ctx.fillRect(px+s*.1,py+s*.62,s*.28,s*.07);ctx.fillRect(px+s*.55,py+s*.4,s*.2,s*.07);ctx.fillRect(px+s*.7,py+s*.73,s*.18,s*.06);
+      break;
+    case T.WATER:case T.WATER2:
+      ctx.fillStyle='#1a6bd4';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle=`rgba(80,160,255,${.25+.12*Math.sin(animFrame*.05+px*.01)})`;ctx.fillRect(px,py+s*.3,s,s*.15);
+      ctx.fillStyle=`rgba(200,230,255,${.15+.1*Math.sin(animFrame*.07+py*.01)})`;ctx.fillRect(px+s*.1,py+s*.65,s*.8,s*.07);
+      break;
+    case T.SAND:
+      ctx.fillStyle='#c8a85a';ctx.fillRect(px,py,s,s);ctx.fillStyle='#d4b96a';ctx.fillRect(px+2,py+2,s-4,s-4);break;
+    case T.TREE:
+      ctx.fillStyle='#3a7d2c';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#2a3a1a';ctx.fillRect(px+s*.38,py+s*.58,s*.24,s*.42);
+      ctx.fillStyle='#1a7a1a';ctx.beginPath();ctx.arc(px+s*.5,py+s*.38,s*.36,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#2aaa2a';ctx.beginPath();ctx.arc(px+s*.5,py+s*.28,s*.22,0,Math.PI*2);ctx.fill();
+      break;
+    case T.DARK_TREE:
+      ctx.fillStyle='#0a1a0a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#102010';ctx.fillRect(px+s*.38,py+s*.58,s*.24,s*.42);
+      ctx.fillStyle='#0a4010';ctx.beginPath();ctx.arc(px+s*.5,py+s*.38,s*.36,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#0a5a18';ctx.beginPath();ctx.arc(px+s*.5,py+s*.28,s*.22,0,Math.PI*2);ctx.fill();
+      break;
+    case T.STONE:
+      ctx.fillStyle='#888';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#666';ctx.fillRect(px+2,py+2,s*.45,s*.45);ctx.fillRect(px+s*.55,py+2,s*.42,s*.45);ctx.fillRect(px+2,py+s*.55,s*.9,s*.42);
+      ctx.fillStyle='#aaa';ctx.fillRect(px+4,py+4,3,3);break;
+    case T.PATH:
+      ctx.fillStyle='#a09070';ctx.fillRect(px,py,s,s);ctx.fillStyle='#9a8860';ctx.fillRect(px+2,py+2,s-4,s-4);break;
+    case T.WALL:
+      ctx.fillStyle='#333';ctx.fillRect(px,py,s,s);ctx.fillStyle='#444';
+      for(let r=0;r<3;r++)for(let c=0;c<3;c++)if((r+c)%2===0)ctx.fillRect(px+c*(s/3),py+r*(s/3),s/3-1,s/3-1);break;
+    case T.FLOOR:
+      ctx.fillStyle='#5a5a7a';ctx.fillRect(px,py,s,s);ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;
+      ctx.strokeRect(px+1,py+1,s*.5,s*.5);ctx.strokeRect(px+s*.5,py+1,s*.5,s*.5);
+      ctx.strokeRect(px+1,py+s*.5,s*.5,s*.5);ctx.strokeRect(px+s*.5,py+s*.5,s*.5,s*.5);break;
+    case T.CASTLE_WALL:
+      ctx.fillStyle='#6a5a3a';ctx.fillRect(px,py,s,s);ctx.fillStyle='#7a6a4a';
+      ctx.fillRect(px+2,py+2,s*.45,s*.45);ctx.fillRect(px+s*.53,py+2,s*.44,s*.45);ctx.fillRect(px+2,py+s*.53,s*.9,s*.44);
+      ctx.fillStyle='#8a7a5a';ctx.fillRect(px+4,py+4,3,3);break;
+    case T.CASTLE_FLOOR:
+      ctx.fillStyle='#8a7a5a';ctx.fillRect(px,py,s,s);ctx.strokeStyle='#7a6a4a';ctx.lineWidth=1;
+      ctx.strokeRect(px+1,py+1,s*.5,s*.5);ctx.strokeRect(px+s*.5,py+1,s*.5,s*.5);
+      ctx.strokeRect(px+1,py+s*.5,s*.5,s*.5);ctx.strokeRect(px+s*.5,py+s*.5,s*.5,s*.5);break;
+    case T.DARK:case 8:
+      ctx.fillStyle='#050308';ctx.fillRect(px,py,s,s);break;
+    case T.DUNGEON_FLOOR:case 14:
+      ctx.fillStyle='#14080a';ctx.fillRect(px,py,s,s);ctx.fillStyle='#1e0e12';ctx.fillRect(px+2,py+2,s-4,s-4);break;
+    case T.BUSH:
+      ctx.fillStyle='#2a6a0a';ctx.fillRect(px,py,s,s);ctx.fillStyle='#3a8a15';
+      ctx.beginPath();ctx.arc(px+s*.3,py+s*.5,s*.28,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(px+s*.7,py+s*.5,s*.28,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(px+s*.5,py+s*.35,s*.28,0,Math.PI*2);ctx.fill();break;
+    case T.MUSHROOM:
+      ctx.fillStyle='#2a6a0a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#cc2244';ctx.beginPath();ctx.arc(px+s*.5,py+s*.42,s*.28,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px+s*.38,py+s*.36,4,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(px+s*.6,py+s*.32,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#9a8060';ctx.fillRect(px+s*.44,py+s*.6,s*.12,s*.28);break;
+    case T.CRYSTAL:
+      ctx.fillStyle='#1a2a4a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle=`hsl(${180+animFrame*1.5},100%,65%)`;
+      ctx.beginPath();ctx.moveTo(px+s*.5,py+s*.08);ctx.lineTo(px+s*.82,py+s*.5);ctx.lineTo(px+s*.5,py+s*.92);ctx.lineTo(px+s*.18,py+s*.5);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.moveTo(px+s*.5,py+s*.08);ctx.lineTo(px+s*.66,py+s*.4);ctx.lineTo(px+s*.5,py+s*.28);ctx.closePath();ctx.fill();
+      break;
+    // INTERACTABLES
+    case T.ROCK:{
+      const g2=.5+.5*Math.sin(animFrame*.08);
+      const base=currentMap;
+      ctx.fillStyle='#3a7d2c';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#777';ctx.beginPath();ctx.ellipse(px+s*.5,py+s*.55,s*.42,s*.35,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#999';ctx.beginPath();ctx.ellipse(px+s*.45,py+s*.48,s*.3,s*.22,-.3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgba(0,255,200,${g2*.55})`;ctx.beginPath();ctx.ellipse(px+s*.5,py+s*.55,s*.46,s*.38,0,0,Math.PI*2);ctx.fill();
+      break;}
+    case T.CHEST:{
+      const opened=triggeredSet.has(`${currentMapId}:${Math.round(px/TILE)|0},${Math.round(py/TILE)|0}`);
+      ctx.fillStyle='#2a5c1a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle=opened?'#5a3a0a':'#aa7700';ctx.fillRect(px+s*.08,py+s*.32,s*.84,s*.54);
+      ctx.fillStyle='#cc9900';ctx.fillRect(px+s*.08,py+s*.32,s*.84,s*.18);
+      if(!opened){
+        ctx.fillStyle='#ffe44d';ctx.beginPath();ctx.arc(px+s*.5,py+s*.5,s*.1,0,Math.PI*2);ctx.fill();
+        const cg=.5+.5*Math.sin(animFrame*.1);ctx.fillStyle=`rgba(255,220,0,${cg*.35})`;ctx.fillRect(px,py,s,s);
+      }break;}
+    case T.DOOR:{
+      const dg=.5+.5*Math.sin(animFrame*.09);
+      ctx.fillStyle='#8a7a5a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#3a2a1a';ctx.fillRect(px+s*.1,py+s*.05,s*.8,s*.9);
+      ctx.fillStyle=`hsl(${50+20*dg},100%,50%)`;ctx.beginPath();ctx.arc(px+s*.78,py+s*.52,s*.1,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgba(255,180,0,${dg*.45})`;ctx.fillRect(px,py,s,s);break;}
+    case T.ALTAR:{
+      const ag=.5+.5*Math.sin(animFrame*.07);
+      ctx.fillStyle='#8a7a5a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#4a3a1a';ctx.fillRect(px+s*.1,py+s*.2,s*.8,s*.7);
+      ctx.fillStyle='#8a6a2a';ctx.fillRect(px+s*.2,py+s*.18,s*.6,s*.12);
+      ctx.fillStyle=`hsl(${200+80*ag},100%,60%)`;ctx.beginPath();ctx.arc(px+s*.5,py+s*.38,s*.14,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgba(100,200,255,${ag*.55})`;ctx.fillRect(px,py,s,s);break;}
+    case T.SCROLL:{
+      const sg=.5+.5*Math.sin(animFrame*.09);
+      ctx.fillStyle='#2a6a0a';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle='#d4a860';ctx.fillRect(px+s*.2,py+s*.3,s*.6,s*.42);
+      ctx.fillStyle='#b88840';ctx.fillRect(px+s*.18,py+s*.28,s*.64,s*.1);ctx.fillRect(px+s*.18,py+s*.62,s*.64,s*.1);
+      ctx.fillStyle=`rgba(255,220,100,${sg*.5})`;ctx.fillRect(px,py,s,s);break;}
+    case T.PORTAL_OUT:{
+      const pg=.5+.5*Math.sin(animFrame*.1);
+      ctx.fillStyle='#111';ctx.fillRect(px,py,s,s);
+      ctx.fillStyle=`rgba(255,80,80,${.3+.4*pg})`;ctx.beginPath();ctx.arc(px+s*.5,py+s*.5,s*.4,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(255,120,120,${.7+.3*pg})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(px+s*.5,py+s*.5,s*.43,0,Math.PI*2);ctx.stroke();
+      ctx.font=`${s*.4}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle='#fff';ctx.globalAlpha=.9;ctx.fillText('🔙',px+s*.5,py+s*.52);
+      ctx.globalAlpha=1;ctx.textAlign='left';ctx.textBaseline='alphabetic';break;}
+    default:{
+      // Overworld portals 20-24
+      const PK=['PORT_SEA','PORT_CITY','PORT_FOREST','PORT_DUNGEON','PORT_CASTLE'];
+      const PV=[20,21,22,23,24];
+      const pi=PV.indexOf(tid);
+      if(pi>=0){
+        const zm=ZONE_META[PK[pi]];
+        const pg3=.5+.5*Math.sin(animFrame*.08);
+        ctx.fillStyle='#111';ctx.fillRect(px,py,s,s);
+        ctx.fillStyle=zm.color;ctx.globalAlpha=.3+.4*pg3;ctx.beginPath();ctx.arc(px+s*.5,py+s*.5,s*.42,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;ctx.strokeStyle=zm.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(px+s*.5,py+s*.5,s*.44,0,Math.PI*2);ctx.stroke();
+        ctx.font=`${s*.42}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.globalAlpha=.9;ctx.fillStyle='#fff';ctx.fillText(zm.icon,px+s*.5,py+s*.52);
+        ctx.globalAlpha=1;ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      } else {
+        ctx.fillStyle='#1a1a2a';ctx.fillRect(px,py,s,s);
+      }
+    }
+  }
+}
+
+// ─── CHARACTER DRAW ───────────────────────────────────────
+function drawChar(x,y,w,h,isNexus){
+  const bob=Math.sin(animFrame*.2)*1.2;
+  const cx=x,cy=y+bob;
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(cx+w/2,cy+h+4,w*.38,4,0,0,Math.PI*2);ctx.fill();
+  if(isNexus){
+    ctx.fillStyle='#004455';ctx.fillRect(cx+w*.18,cy+h*.35,w*.64,h*.55);
+    ctx.fillStyle='#005566';ctx.fillRect(cx+w*.22,cy+h*.04,w*.56,h*.38);
+    ctx.fillStyle='#00ffcc';ctx.fillRect(cx+w*.28,cy+h*.14,w*.44,h*.16);
+    ctx.fillStyle='#fff';ctx.fillRect(cx+w*.32,cy+h*.16,w*.1,w*.1);ctx.fillRect(cx+w*.58,cy+h*.16,w*.1,w*.1);
+    ctx.strokeStyle='#00ffcc';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx+w*.5,cy+h*.04);ctx.lineTo(cx+w*.5,cy-6);ctx.stroke();
+    ctx.fillStyle=`hsl(${animFrame*4},100%,65%)`;ctx.beginPath();ctx.arc(cx+w*.5,cy-8,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#00bbaa';ctx.fillRect(cx+w*.18,cy+h*.38,w*.64,h*.07);
+    ctx.fillStyle='#004455';ctx.fillRect(cx,cy+h*.4,w*.2,h*.3);ctx.fillRect(cx+w*.8,cy+h*.4,w*.2,h*.3);
+    ctx.fillStyle='#003344';ctx.fillRect(cx+w*.25,cy+h*.86,w*.2,h*.14);ctx.fillRect(cx+w*.55,cy+h*.86,w*.2,h*.14);
+    ctx.fillStyle='#00ffcc';ctx.fillRect(cx+w*.22,cy+h*.96,w*.26,h*.05);ctx.fillRect(cx+w*.52,cy+h*.96,w*.26,h*.05);
+  } else {
+    ctx.fillStyle='#3355cc';ctx.fillRect(cx+w*.18,cy+h*.35,w*.64,h*.55);
+    ctx.fillStyle='#f5c5a0';ctx.fillRect(cx+w*.25,cy+h*.04,w*.5,h*.38);
+    ctx.fillStyle='#331100';ctx.fillRect(cx+w*.2,cy+h*.02,w*.6,h*.14);
+    ctx.fillStyle='#fff';ctx.fillRect(cx+w*.3,cy+h*.16,w*.12,w*.1);ctx.fillRect(cx+w*.56,cy+h*.16,w*.12,w*.1);
+    ctx.fillStyle='#334';ctx.fillRect(cx+w*.33,cy+h*.17,w*.07,w*.07);ctx.fillRect(cx+w*.59,cy+h*.17,w*.07,w*.07);
+    ctx.fillStyle='#ee3333';ctx.fillRect(cx+w*.18,cy+h*.38,w*.64,h*.07);
+    const aS=Math.sin(animFrame*.18)*(Object.values(keys).some(v=>v)?.14:0);
+    ctx.fillStyle='#3355cc';
+    ctx.save();ctx.translate(cx+w*.14,cy+h*.4);ctx.rotate(-aS);ctx.fillRect(-w*.1,0,w*.14,h*.34);ctx.restore();
+    ctx.save();ctx.translate(cx+w*.86,cy+h*.4);ctx.rotate(aS);ctx.fillRect(-w*.04,0,w*.14,h*.34);ctx.restore();
+    ctx.fillStyle='#222';ctx.fillRect(cx+w*.24,cy+h*.85,w*.2,h*.15);ctx.fillRect(cx+w*.55,cy+h*.85,w*.2,h*.15);
+    ctx.fillStyle='#884422';ctx.fillRect(cx+w*.21,cy+h*.96,w*.24,h*.05);ctx.fillRect(cx+w*.52,cy+h*.96,w*.24,h*.05);
+    ctx.strokeStyle='#cc8800';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx+w*.9,cy+h*.38);ctx.lineTo(cx+w*.78,cy+h*.7);ctx.stroke();
+    ctx.fillStyle=`hsl(${animFrame*4},100%,60%)`;ctx.beginPath();ctx.arc(cx+w*.92,cy+h*.34,4,0,Math.PI*2);ctx.fill();
+  }
+}
+
+// ─── NEXUS COMPANION ─────────────────────────────────────
+let nexusBubbleText = '';
+let nexusBubbleTimer = 0;
+let nexusBubbleDisplayed = ''; // typewriter progress
+let nexusBubbleCharIdx = 0;
+let nexusBubbleCharTimer = 0;
+
+function updateNexus(){
+  const tx=player.x+TILE*1.6, ty=player.y;
+  nexus.x+=(tx-nexus.x)*.07;
+  nexus.y+=(ty-nexus.y)*.07;
+  if(nexusBubbleTimer>0){
+    nexusBubbleTimer--;
+    // typewriter
+    nexusBubbleCharTimer++;
+    if(nexusBubbleCharTimer%2===0 && nexusBubbleCharIdx < nexusBubbleText.length){
+      nexusBubbleCharIdx++;
+      nexusBubbleDisplayed = nexusBubbleText.slice(0, nexusBubbleCharIdx);
+    }
+  } else {
+    nexusBubbleText=''; nexusBubbleDisplayed=''; nexusBubbleCharIdx=0;
+  }
+}
+
+function nexusSpeak(msg, ms=4500){
+  // shorten for bubble display
+  const short = msg.length > 90 ? msg.slice(0,88)+'…' : msg;
+  nexusBubbleText = short;
+  nexusBubbleDisplayed = '';
+  nexusBubbleCharIdx = 0;
+  nexusBubbleCharTimer = 0;
+  nexusBubbleTimer = Math.ceil(ms/16);
+}
+
+function drawNexusBubble(nx, ny){
+  if(!nexusBubbleDisplayed) return;
+  const txt = nexusBubbleDisplayed;
+  // measure & wrap text
+  ctx.font = '12px VT323, monospace';
+  const maxW = 170;
+  const words = txt.split(' ');
+  const lines = [];
+  let line = '';
+  for(const w of words){
+    const test = line ? line+' '+w : w;
+    if(ctx.measureText(test).width > maxW && line){ lines.push(line); line=w; }
+    else line=test;
+  }
+  if(line) lines.push(line);
+  const lineH = 15, pad = 8;
+  const bw = maxW + pad*2;
+  const bh = lines.length*lineH + pad*2;
+  const bx = nx - bw/2 + 15;
+  const by = ny - bh - 30;
+
+  // cloud bubble background
+  ctx.fillStyle = 'rgba(0,255,200,0.92)';
+  roundRect(ctx, bx, by, bw, bh, 8);
+  ctx.fill();
+  // border
+  ctx.strokeStyle = '#00aa88';
+  ctx.lineWidth = 2;
+  roundRect(ctx, bx, by, bw, bh, 8);
+  ctx.stroke();
+
+  // thought dots (tail from bubble down to character head)
+  const dotX = bx + bw*.3;
+  const dotY = by + bh;
+  const charHeadY = ny - 2;
+  const steps = 3;
+  for(let i=0;i<steps;i++){
+    const t=(i+1)/(steps+1);
+    const dx2=dotX + (nx-dotX)*t*0.4;
+    const dy2=dotY + (charHeadY-dotY)*t;
+    const r=5-i;
+    ctx.fillStyle='rgba(0,255,200,0.85)';
+    ctx.beginPath(); ctx.arc(dx2,dy2,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#00aa88'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(dx2,dy2,r,0,Math.PI*2); ctx.stroke();
+  }
+
+  // text
+  ctx.fillStyle = '#002a1a';
+  ctx.font = '13px VT323, monospace';
+  ctx.textAlign = 'left';
+  lines.forEach((l,i)=> ctx.fillText(l, bx+pad, by+pad+lineH*i+11));
+  ctx.textAlign = 'left';
+
+  // blinking cursor if still typing
+  if(nexusBubbleCharIdx < nexusBubbleText.length){
+    const lastLine = lines[lines.length-1];
+    const lw = ctx.measureText(lastLine).width;
+    const cursorX = bx+pad+lw+2;
+    const cursorY = by+pad+lineH*(lines.length-1)+2;
+    if(animFrame%20<10){
+      ctx.fillStyle='#002a1a';
+      ctx.fillRect(cursorX, cursorY, 6, 11);
+    }
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+// ─── CHAT ────────────────────────────────────────────────
+async function sendChat(){
+  const inp=document.getElementById('ncText');
+  const msg=inp.value.trim();
+  if(!msg||nexusTyping)return;
+  inp.value='';
+  addChatBubble('player', msg);
+  nexusTyping=true;
+  document.getElementById('ncSend').textContent='…';
+  // show typing indicator
+  const typingEl = addTypingIndicator();
+  chatHistory.push({role:'user', content:msg});
+
+  const sys = `You are Nexus, a friendly and knowledgeable AI companion living inside AlgoRealm — a coding RPG game world. You help the player with anything they want to talk about: Python programming, algorithms, debugging, game progress, or just casual conversation. You have a warm, witty personality — think of yourself as a wise robot wizard who genuinely cares about the player. You can answer general questions too, not just game ones. Keep replies conversational and concise (3-5 sentences usually). The player is currently in zone: ${currentMapId}. Available quests: binary search (Binary Sea), bubble sort (Algorithm City), tree recursion (Memory Forest), bug fixing (Bug Dungeon), merge sort (Sort Castle).`;
+
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: sys,
+        messages: chatHistory.slice(-12)
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.map(b=>b.type==='text'?b.text:'').join('') || "My signal flickered... try again!";
+    chatHistory.push({role:'assistant', content:reply});
+    typingEl.remove();
+    addChatBubble('nexus', reply);
+    nexusSpeak(reply.length>90?reply.slice(0,88)+'…':reply, 5500);
+  } catch(e) {
+    typingEl.remove();
+    const fb = "I couldn't connect to my neural core right now. Make sure this page is served (not opened as a file), and try again!";
+    addChatBubble('nexus', fb);
+    nexusSpeak("Connection issue — try serving this page from a local server!", 5000);
+  }
+  nexusTyping=false;
+  document.getElementById('ncSend').textContent='▶';
+}
+
+function addChatBubble(who, text){
+  const log = document.getElementById('ncLog');
+  if(who==='nexus'){
+    const wrap = document.createElement('div');
+    wrap.className='nc-nexus-wrap';
+    const av = document.createElement('canvas');
+    av.width=22; av.height=22; av.style.cssText='width:22px;height:22px;image-rendering:pixelated;border-radius:3px;flex-shrink:0;';
+    drawMiniAvatar(av);
+    const bub = document.createElement('div');
+    bub.className='nc-nexus-bubble'; bub.textContent=text;
+    wrap.appendChild(av); wrap.appendChild(bub);
+    log.appendChild(wrap);
+  } else {
+    const wrap = document.createElement('div');
+    wrap.className='nc-player-wrap';
+    const bub = document.createElement('div');
+    bub.className='nc-player-bubble'; bub.textContent=text;
+    wrap.appendChild(bub); log.appendChild(wrap);
+  }
+  log.scrollTop=log.scrollHeight;
+  if(!chatOpen) openChat();
+}
+
+function addTypingIndicator(){
+  const log = document.getElementById('ncLog');
+  const wrap = document.createElement('div');
+  wrap.className='nc-nexus-wrap';
+  const av = document.createElement('canvas');
+  av.width=22; av.height=22; av.style.cssText='width:22px;height:22px;image-rendering:pixelated;border-radius:3px;flex-shrink:0;';
+  drawMiniAvatar(av);
+  const bub = document.createElement('div');
+  bub.className='nc-nexus-bubble nc-typing';
+  bub.innerHTML='<div class="nc-dot"></div><div class="nc-dot"></div><div class="nc-dot"></div>';
+  wrap.appendChild(av); wrap.appendChild(bub);
+  log.appendChild(wrap);
+  log.scrollTop=log.scrollHeight;
+  return wrap;
+}
+
+function drawMiniAvatar(c){
+  const x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+  x.fillStyle='#001a22'; x.fillRect(0,0,22,22);
+  x.fillStyle='#005566'; x.fillRect(3,5,16,13);
+  x.fillStyle='#00ffcc'; x.fillRect(5,8,12,4);
+  x.fillStyle='#001a22'; x.fillRect(6,9,3,3); x.fillRect(13,9,3,3);
+}
+
+function openChat(){
+  chatOpen=true;
+  document.getElementById('nexusChat').style.display='flex';
+  document.getElementById('chatToggleBtn').style.background='#ff6666';
+  setTimeout(()=>document.getElementById('ncText').focus(),100);
+}
+function closeChat(){
+  chatOpen=false;
+  document.getElementById('nexusChat').style.display='none';
+  document.getElementById('chatToggleBtn').style.background='var(--accent)';
+}
+function toggleChat(){ chatOpen ? closeChat() : openChat(); }
+
+// ─── MOVEMENT ────────────────────────────────────────────
+function isSolid(tx,ty){
+  if(tx<0||tx>=COLS||ty<0||ty>=ROWS)return true;
+  return SOLID.has(currentMap[ty][tx]);
+}
+function movePlayer(){
+  let dx=0,dy=0;
+  if(keys['w']||keys['arrowup'])dy=-1;if(keys['s']||keys['arrowdown'])dy=1;
+  if(keys['a']||keys['arrowleft'])dx=-1;if(keys['d']||keys['arrowright'])dx=1;
+  if(dx&&dy){dx*=.707;dy*=.707;}
+  const sp=player.speed,m=3;
+  const nx2=player.x+dx*sp,ny2=player.y+dy*sp;
+  const tx1=Math.floor((nx2+m)/TILE),tx2=Math.floor((nx2+player.w-m)/TILE);
+  const ty1=Math.floor((ny2+m)/TILE),ty2=Math.floor((ny2+player.h-m)/TILE);
+  const cx=isSolid(tx1,ty1)||isSolid(tx2,ty1)||isSolid(tx1,ty2)||isSolid(tx2,ty2);
+  const cx1=isSolid(tx1,Math.floor((player.y+m)/TILE))||isSolid(tx1,Math.floor((player.y+player.h-m)/TILE));
+  const cx2b=isSolid(tx2,Math.floor((player.y+m)/TILE))||isSolid(tx2,Math.floor((player.y+player.h-m)/TILE));
+  const cy1=isSolid(Math.floor((player.x+m)/TILE),ty1)||isSolid(Math.floor((player.x+player.w-m)/TILE),ty1);
+  const cy2b=isSolid(Math.floor((player.x+m)/TILE),ty2)||isSolid(Math.floor((player.x+player.w-m)/TILE),ty2);
+  if(!cx){player.x=nx2;player.y=ny2;}else{if(!cy1&&!cy2b)player.y=ny2;if(!cx1&&!cx2b)player.x=nx2;}
+}
+function updateCamera(){
+  const tx=player.x-W/2+player.w/2,ty=player.y-H/2+player.h/2;
+  camera.x+=(tx-camera.x)*.12;camera.y+=(ty-camera.y)*.12;
+  camera.x=Math.max(0,Math.min(camera.x,COLS*TILE-W));
+  camera.y=Math.max(0,Math.min(camera.y,ROWS*TILE-H));
+}
+
+// ─── INTERACTION ─────────────────────────────────────────
+function nearestInteractable(){
+  const cx=Math.floor((player.x+player.w/2)/TILE),cy=Math.floor((player.y+player.h/2)/TILE);
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    const tx=cx+dx,ty=cy+dy;
+    if(ty<0||ty>=ROWS||tx<0||tx>=COLS)continue;
+    if(INTERACTABLE.has(currentMap[ty][tx]))return{tx,ty,tid:currentMap[ty][tx]};
+  }return null;
+}
+function interact(){
+  const hit=nearestInteractable();if(!hit)return;
+  const{tx,ty,tid}=hit;
+  const PK=['PORT_SEA','PORT_CITY','PORT_FOREST','PORT_DUNGEON','PORT_CASTLE'];
+  const PV=[20,21,22,23,24];const pi=PV.indexOf(tid);
+  if(pi>=0){enterZone(PK[pi]);return;}
+  if(tid===T.PORTAL_OUT){exitToOverworld();return;}
+  if(tid===T.CRYSTAL){nexusSpeak('A memory crystal! These once powered this realm.');addChatBubble('nexus','Memory crystal! These powered the realm before the great corruption.');return;}
+  const qMap=ZONE_TRIGGERS[currentMapId]||{};const questId=qMap[tid];
+  if(!questId){nexusSpeak('Nothing here... keep exploring!');return;}
+  const key=`${currentMapId}:${tx},${ty}`;
+  if(triggeredSet.has(key)){nexusSpeak('Already solved! Great work, coder.');return;}
+  nexusSpeak(`Opening: ${QUESTS[questId].title}!`,3000);
+  setTimeout(()=>openEditor(questId,key),200);
+}
+
+// ─── ZONE TRANSITION ─────────────────────────────────────
+function enterZone(zoneKey){
+  const zm=ZONE_META[zoneKey];
+  if(!zm||!zm.map){nexusSpeak('This zone is coming soon!');return;}
+  const ov=document.getElementById('transOverlay');
+  document.getElementById('transTitle').textContent=`${zm.icon} Entering ${zm.name}...`;
+  ov.style.display='flex';
+  setTimeout(()=>{
+    currentMapId=zoneKey;currentMap=zm.map;
+    ROWS=currentMap.length;COLS=currentMap[0].length;
+    player.x=zm.spawnX*TILE;player.y=zm.spawnY*TILE;
+    nexus.x=player.x+TILE*1.6;nexus.y=player.y;
+    camera.x=Math.max(0,player.x-W/2);camera.y=Math.max(0,player.y-H/2);
+    document.getElementById('zoneBadge').textContent=`${zm.icon} ${zm.name.toUpperCase()}`;
+    ov.style.display='none';
+    setTimeout(()=>{nexusSpeak(zm.intro,5500);addChatBubble('nexus',zm.intro);},400);
+  },700);
+}
+function exitToOverworld(){
+  const ov=document.getElementById('transOverlay');
+  document.getElementById('transTitle').textContent='🌍 Returning to Overworld...';
+  ov.style.display='flex';
+  setTimeout(()=>{
+    currentMapId='OVERWORLD';currentMap=MAP_OW;
+    ROWS=currentMap.length;COLS=currentMap[0].length;
+    player.x=12*TILE;player.y=7*TILE;
+    nexus.x=player.x+TILE*1.6;nexus.y=player.y;
+    camera.x=Math.max(0,player.x-W/2);camera.y=Math.max(0,player.y-H/2);
+    document.getElementById('zoneBadge').textContent='🌍 OVERWORLD';
+    ov.style.display='none';
+    nexusSpeak('Back in the Overworld! More zones to conquer.',4000);
+  },600);
+}
+
+// ─── CODE EDITOR ─────────────────────────────────────────
+function openEditor(questId,tileKey2){
+  const q=QUESTS[questId];if(!q)return;
+  currentQuest=questId;pendingTileKey=tileKey2||null;
+  document.getElementById('edTitle').textContent='◈ '+q.title;
+  document.getElementById('edZone').textContent=q.zone+' · Python Challenge';
+  document.getElementById('edDesc').textContent=q.desc;
+  document.getElementById('edEx').textContent=q.ex;
+  document.getElementById('edHint').textContent='Run your code to get Nexus feedback!';
+  document.getElementById('codeInput').value='';
+  document.getElementById('outBox').textContent='▶ Output appears here...';
+  document.getElementById('outBox').className='';
+  document.getElementById('codeModal').style.display='flex';
+}
+function closeEditor(){document.getElementById('codeModal').style.display='none';}
+function runCode(){
+  const q=QUESTS[currentQuest];if(!q)return;
+  const code=document.getElementById('codeInput').value;
+  const out=document.getElementById('outBox');
+  if(!code.trim()){out.textContent='⚠ Write some code first!';out.className='warn';return;}
+  const r=q.check(code);
+  if(r.ok){
+    out.textContent=r.msg;out.className='ok';
+    const g=r.bonus?100:60;addEnergy(g);addScore(g);
+    document.getElementById('edHint').textContent='✅ '+(r.bonus?'Perfect! Optimal solution!':'Good! Try to optimize further!');
+    nexusSpeak(r.bonus?'Incredible! Perfect algorithm! 🏆':'Well done! Try optimizing it!',5000);
+    addChatBubble('nexus',r.bonus?'Outstanding! The world repairs itself with your perfect algorithm! 🏆':'Good solve! There may be an even more efficient approach...');
+    spawnParticles(player.x+player.w/2-camera.x,player.y+player.h/2-camera.y,r.bonus?'#ffd700':'#4ade80',14);
+    showToast(r.msg);
+    if(pendingTileKey)triggeredSet.add(pendingTileKey);
+    setTimeout(closeEditor,2200);
+  }else{
+    out.textContent=r.msg;out.className='err';
+    document.getElementById('edHint').textContent='💡 '+q.hint;
+    nexusSpeak(q.hint.slice(0,80),5000);
+  }
+}
+
+// ─── PARTICLES ───────────────────────────────────────────
+function spawnParticles(x,y,col,n=8){
+  for(let i=0;i<n;i++){
+    const a=(Math.PI*2/n)*i+Math.random()*.3;
+    particles.push({x,y,vx:Math.cos(a)*2.8,vy:Math.sin(a)*2.8,life:44,color:col,size:3+Math.random()*4});
+  }
+}
+function drawParticles(){
+  particles=particles.filter(p=>p.life>0);
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.08;p.life--;
+    ctx.globalAlpha=p.life/44;ctx.fillStyle=p.color;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);});
+  ctx.globalAlpha=1;
+}
+
+// ─── PROXIMITY HIGHLIGHT ─────────────────────────────────
+function drawHighlight(){
+  const hit=nearestInteractable();if(!hit)return;
+  const{tx,ty}=hit;
+  const px=tx*TILE-camera.x,py=ty*TILE-camera.y;
+  ctx.strokeStyle='#fff';ctx.lineWidth=2.5;
+  ctx.globalAlpha=.5+.5*Math.sin(animFrame*.12);ctx.strokeRect(px+1,py+1,TILE-2,TILE-2);ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(px-8,py-20,88,14);
+  ctx.fillStyle='#fff';ctx.font='7px "Press Start 2P"';ctx.fillText('[E] INTERACT',px-6,py-9);
+}
+
+// ─── UI HELPERS ──────────────────────────────────────────
+function addEnergy(v){energy=Math.min(100,energy+v);document.getElementById('energyBar').style.width=energy+'%';document.getElementById('eVal').textContent=energy;}
+function addScore(v){score+=v;document.getElementById('scoreVal').textContent=score;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2600);}
+
+// ─── NEXUS AVATAR (chat panel header) ────────────────────
+function drawNcAvatar(){
+  const c=document.getElementById('ncAvatar');
+  const x=c.getContext('2d');
+  x.imageSmoothingEnabled=false;const s=4;
+  x.fillStyle='#001a22';x.fillRect(0,0,36,36);
+  x.fillStyle='#005566';x.fillRect(s,s*2,s*6,s*5);
+  x.fillStyle='#00ffcc';x.fillRect(s*2,s*3,s*4,s*1.5);
+  x.fillStyle='#001a22';x.fillRect(s*2+2,s*3+2,s,s);x.fillRect(s*4+2,s*3+2,s,s);
+  x.fillStyle='#00aa88';x.fillRect(0,s*7,s*8,s*2.5);
+  x.strokeStyle='#00ffcc';x.lineWidth=2;x.beginPath();x.moveTo(s*4,s*2);x.lineTo(s*4,0);x.stroke();
+  x.fillStyle='#00ffcc';x.beginPath();x.arc(s*4,0,3,0,Math.PI*2);x.fill();
+}
+
+// ─── MAIN LOOP ───────────────────────────────────────────
+function gameLoop(){
+  animFrame++;ctx.clearRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  if(currentMapId==='PORT_DUNGEON'){g.addColorStop(0,'#050308');g.addColorStop(1,'#0a0510');}
+  else if(currentMapId==='PORT_SEA'){g.addColorStop(0,'#0a2a5a');g.addColorStop(1,'#1a5fad');}
+  else if(currentMapId==='PORT_CASTLE'){g.addColorStop(0,'#2a1a08');g.addColorStop(1,'#4a3a18');}
+  else if(currentMapId==='PORT_FOREST'){g.addColorStop(0,'#051a08');g.addColorStop(1,'#0a2a0e');}
+  else{g.addColorStop(0,'#4a90d9');g.addColorStop(1,'#87ceeb');}
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  movePlayer();updateCamera();updateNexus();
+  const sc=Math.floor(camera.x/TILE),ec=Math.min(COLS,sc+Math.ceil(W/TILE)+2);
+  const sr=Math.floor(camera.y/TILE),er=Math.min(ROWS,sr+Math.ceil(H/TILE)+2);
+  for(let r=sr;r<er;r++)for(let c=sc;c<ec;c++)drawTile(currentMap[r][c],c*TILE-camera.x,r*TILE-camera.y,TILE);
+  drawHighlight();drawParticles();
+  drawChar(nexus.x-camera.x,nexus.y-camera.y,player.w,player.h,true);
+  // draw speech bubble on canvas above Nexus
+  drawNexusBubble(nexus.x-camera.x+player.w/2, nexus.y-camera.y);
+  drawChar(player.x-camera.x,player.y-camera.y,player.w,player.h,false);
+  document.getElementById('coordTxt').textContent=`${Math.floor(player.x/TILE)},${Math.floor(player.y/TILE)}`;
+  requestAnimationFrame(gameLoop);
+}
+
+// ─── INPUT ───────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.target===document.getElementById('ncText'))return;
+  if(e.target===document.getElementById('codeInput'))return;
+  const k=e.key.toLowerCase();keys[k]=true;
+  if(k==='e')interact();
+  if(k==='t'||k==='tab'){e.preventDefault();chatOpen?closeChat():openChat();}
+  if(k==='escape'){closeEditor();closeChat();}
+});
+document.addEventListener('keyup',e=>{
+  if(e.target===document.getElementById('ncText'))return;
+  if(e.target===document.getElementById('codeInput'))return;
+  keys[e.key.toLowerCase()]=false;
+});
+
+// ─── STARS ───────────────────────────────────────────────
+(function(){
+  const w=document.getElementById('starsWrap');
+  for(let i=0;i<90;i++){
+    const d=document.createElement('div');d.className='star';
+    const s=Math.random()*2.5+.5;
+    d.style.cssText=`width:${s}px;height:${s}px;top:${Math.random()*100}%;left:${Math.random()*100}%;animation-delay:${Math.random()*2}s;animation-duration:${1.5+Math.random()*2}s`;
+    w.appendChild(d);
+  }
+})();
+
+// ─── START ───────────────────────────────────────────────
+function startGame(){
+  document.getElementById('titleScreen').style.display='none';
+  document.getElementById('shell').style.display='flex';
+  document.getElementById('chatToggleBtn').style.display='block';
+  drawNcAvatar();
+  const welcome = "Hey! I'm Nexus, your AI companion. Walk around with WASD, press E near glowing portals to enter zones, and find hidden objects inside to unlock coding challenges. You can ask me anything — game help, Python questions, or just chat. I'm always here!";
+  setTimeout(()=>{
+    nexusSpeak("Hey! I'm Nexus. Use WASD to explore. Press E near portals!", 7000);
+    addChatBubble('nexus', welcome);
+    openChat();
+  },700);
+  gameLoop();
+}
+</script>
+</body>
+</html>
